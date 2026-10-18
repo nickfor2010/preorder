@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pre-order 預訂</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{--bg:#fffaf3;--card:#fff;--tx:#2b2118;--mu:#7a6a5c;--ac:#d9622b;--ok:#2e8b57;--bd:#eadfce;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1713;--card:#2a231d;--tx:#f5ece2;--mu:#b5a493;--ac:#f08a52;--ok:#5cc98a;--bd:#3d342b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1c1713;--card:#2a231d;--tx:#f5ece2;--mu:#b5a493;--ac:#f08a52;--ok:#5cc98a;--bd:#3d342b;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,"Noto Sans TC","PingFang TC",system-ui,sans-serif}
+main{max-width:520px;margin:0 auto;padding:14px 14px 90px}
+h1{font-size:22px;margin:6px 0 12px}h2{font-size:16px;margin:16px 0 6px;color:var(--mu)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin:8px 0}
+button,input,select,textarea{font:inherit;color:inherit}
+input,textarea{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+button{border:0;border-radius:12px;padding:12px 14px;background:var(--bd);cursor:pointer}
+.pri{background:var(--ac);color:#fff;font-weight:700;width:100%;padding:15px;font-size:18px}
+.ok{background:var(--ok);color:#fff}.sm{padding:8px 10px;font-size:14px}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.qty{display:flex;align-items:center;gap:10px}.qty button{width:42px;height:42px;font-size:22px;padding:0}.qty b{min-width:24px;text-align:center;font-size:20px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{flex:1;min-width:90px}.chips .on{background:var(--ac);color:#fff}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;border-radius:0;background:none;padding:14px 4px}nav .on{color:var(--ac);font-weight:700}
+.qrbox{background:#fff;padding:12px;border-radius:14px;margin:10px auto;width:min(80vw,320px)}.qrbox svg{width:100%;height:auto;display:block}
+.big{font-size:44px;font-weight:800;text-align:center;letter-spacing:2px;color:var(--ac)}
+.mu{color:var(--mu);font-size:14px}.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:13px;background:var(--bd)}.tag.d{background:var(--ok);color:#fff}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px 30px}
+.lang{float:right}.c{text-align:center}
+</style></head><body><main id="app"></main>
+<script>
+const $=s=>document.querySelector(s);
+const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(x){return d}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(x){}};
+const DAYS={t:['Today','今天'],m:['Tomorrow','明天'],n:['Next market','下次市集']};
+let products=ld('products',[{en:'Egg tart',zh:'蛋塔'},{en:'Pineapple cake',zh:'鳳梨酥'},{en:'Sourdough loaf',zh:'酸種麵包'}]);
+let shop=ld('shop',{name:'My Shop 我的店',addr:'',hours:'',line:''});
+let orders=ld('orders',[]);
+let tab='new',cart={},day='t',phoneDraft='',timeDraft='',noteDraft='',q='';
+
+// ---- QR (black on white SVG) ----
+function qrSvg(text){const k=qrcode(0,'M');k.addData(text,'Byte');k.make();const n=k.getModuleCount();let p='';
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(k.isDark(r,c))p+=`M${c} ${r}h1v1h-1z`;
+ return `<svg viewBox="-2 -2 ${n+4} ${n+4}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n+4}" height="${n+4}" fill="#fff"/><path d="${p}" fill="#000"/></svg>`}
+const b64=o=>{const b=new TextEncoder().encode(JSON.stringify(o));let s='';b.forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const unb64=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t),b=Uint8Array.from(s,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))};
+const base=()=>location.href.split('#')[0];
+const link=o=>base()+'#o='+b64({i:o.id,it:o.items.map(x=>[x.en,x.zh,x.q]),d:o.day,t:o.time,n:o.note,s:[shop.name,shop.addr,shop.hours,shop.line]});
+
+// ---- customer view ----
+let lang=(navigator.language||'').toLowerCase().startsWith('zh')?1:0;
+const T=(a,z)=>lang?z:a;
+function customer(d){
+ const [sn,sa,sh,sl]=d.s||[];
+ const items=d.it.map(x=>`<div class="row" style="font-size:19px;padding:6px 0"><span>${e(lang?x[1]||x[0]:x[0])}</span><b>× ${x[2]}</b></div>`).join('');
+ const dayT=DAYS[d.d]?DAYS[d.d][lang]:'';
+ const msg=`${sn}\n${T('Order','訂單')} #${d.i}\n`+d.it.map(x=>`${lang?x[1]||x[0]:x[0]} × ${x[2]}`).join('\n')+`\n${T('Pickup','取貨')}: ${dayT} ${d.t||''}\n${sa||''}`;
+ const mine=orders.find(o=>o.id===d.i);
+ $('#app').innerHTML=`<button class="sm lang" onclick="lang=1-lang;customer(window._d)">${lang?'English':'中文'}</button>
+ <h1>${T('Your reservation','您的預訂')}</h1>
+ <div class="card c"><div class="mu">${T('Order number','訂單編號')}</div><div class="big">#${e(d.i)}</div></div>
+ <div class="card">${items}</div>
+ <div class="card"><div class="mu">${T('Pickup','取貨時間')}</div><div style="font-size:24px;font-weight:700">${e(dayT)} ${e(d.t||'')}</div>
+ ${d.n?`<div class="mu" style="margin-top:6px">📝 ${e(d.n)}</div>`:''}</div>
+ <div class="card"><b>${e(sn)}</b>${sa?`<div>📍 ${e(sa)}</div>`:''}${sh?`<div>🕐 ${e(sh)}</div>`:''}
+ <div class="mu" style="margin-top:6px">${T('Show this page or your photo at the shop. Pay at pickup.','取貨時請出示此畫面或截圖，現場付款。')}</div></div>
+ <a href="https://line.me/R/share?text=${encodeURIComponent(msg)}"><button class="pri ok" style="margin-top:6px">💬 ${T('Send to my LINE','傳到我的 LINE')}</button></a>
+ ${sl?`<a href="https://line.me/R/ti/p/${encodeURIComponent(sl)}"><button class="pri" style="margin-top:8px;background:#06c755">${T('Add shop on LINE','加入店家 LINE')}</button></a>`:''}
+ ${mine?`<div class="card" style="margin-top:14px;border-color:var(--ac)"><b>🔧 Shop only · ${mine.done?'Picked up':'Waiting'}</b><div class="mu">${e(mine.phone)}</div>
+ <button class="pri ok" style="margin-top:8px" onclick="toggleDone('${mine.id}');customer(window._d)">${mine.done?'Undo':'✔ Picked up 已取貨'}</button></div>`:''}`;
+ window._d=d}
+
+// ---- admin ----
+function newId(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';do{s='';for(let i=0;i<4;i++)s+=a[Math.random()*a.length|0]}while(orders.some(o=>o.id===s));return s}
+function toggleDone(id){const o=orders.find(o=>o.id===id);if(o){o.done=!o.done;sv('orders',orders)}}
+function create(){
+ const items=products.filter((p,i)=>cart[i]>0).map((p,i)=>p).map(p=>({en:p.en,zh:p.zh,q:cart[products.indexOf(p)]}));
+ const phone=phoneDraft.replace(/\D/g,'');
+ if(!items.length)return alert('Pick at least one item 請選商品');
+ if(phone.length<4)return alert('Phone number needed 請輸入電話');
+ const o={id:newId(),phone,items,day,time:timeDraft,note:noteDraft,done:false,at:Date.now()};
+ orders.unshift(o);sv('orders',orders);cart={};phoneDraft='';timeDraft='';noteDraft='';showQR(o)}
+function showQR(o){
+ const url=link(o);
+ const d=document.createElement('div');d.className='ov';d.id='ov';
+ d.innerHTML=`<div class="c"><h1>#${e(o.id)}</h1><div class="mu">Ask the customer to take a photo 請客人拍照</div>
+ <div class="qrbox">${qrSvg(url)}</div>
+ <div style="font-size:20px">${o.items.map(x=>e(x.zh||x.en)+' × '+x.q).join('<br>')}</div>
+ <div class="mu" style="margin:8px 0">${DAYS[o.day][0]} ${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)}</div>
+ <button class="pri" onclick="$('#ov').remove();render()">Done 完成</button>
+ <p class="mu" style="word-break:break-all"><a href="${e(url)}" target="_blank">Preview customer page 預覽</a></p></div>`;
+ document.body.appendChild(d)}
+function render(){
+ if(location.hash.startsWith('#o=')){try{return customer(unb64(location.hash.slice(3)))}catch(x){}}
+ const nav=`<nav>${[['new','➕ New 新增'],['list','📋 Orders 訂單'],['set','⚙️ Setup 設定']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="tab='${k}';render()">${l}</button>`).join('')}</nav>`;
+ let h='';
+ if(tab==='new'){
+  h=`<h1>New order 新訂單</h1>`+products.map((p,i)=>`<div class="card row"><div><b>${e(p.zh)}</b><div class="mu">${e(p.en)}</div></div>
+  <div class="qty"><button onclick="cart[${i}]=Math.max(0,(cart[${i}]||0)-1);keep();render()">−</button><b>${cart[i]||0}</b><button onclick="cart[${i}]=(cart[${i}]||0)+1;keep();render()">+</button></div></div>`).join('')+
+  `<h2>Pickup 取貨</h2><div class="chips">${Object.keys(DAYS).map(k=>`<button class="${day===k?'on':''}" onclick="keep();day='${k}';render()">${DAYS[k][0]}<br>${DAYS[k][1]}</button>`).join('')}</div>
+  <input id="tm" placeholder="Time 時間 (e.g. after 3pm 下午三點後)" value="${e(timeDraft)}" style="margin-top:8px">
+  <h2>Phone 電話</h2><input id="ph" type="tel" inputmode="numeric" placeholder="09xx xxx xxx" value="${e(phoneDraft)}">
+  <input id="nt" placeholder="Note 備註 (optional)" value="${e(noteDraft)}" style="margin-top:8px">
+  <button class="pri" style="margin-top:14px" onclick="keep();create()">Create QR 產生 QR</button>`;
+ }else if(tab==='list'){
+  const s=q.replace(/\D/g,'');
+  let L=orders.filter(o=>!s||o.phone.includes(s)||o.id.toLowerCase()===q.toLowerCase());
+  h=`<h1>Orders 訂單</h1><input id="sq" placeholder="Search phone (last 4 digits) 搜尋電話後四碼" value="${e(q)}" inputmode="search">`;
+  const sum={};orders.filter(o=>!o.done).forEach(o=>o.items.forEach(x=>{const k=o.day+'|'+(x.zh||x.en);sum[k]=(sum[k]||0)+x.q}));
+  const sk=Object.keys(sum);
+  if(sk.length&&!s)h+=`<div class="card"><b>To make 要準備</b>`+Object.keys(DAYS).map(d=>{const r=sk.filter(k=>k[0]===d);return r.length?`<div class="mu" style="margin-top:4px">${DAYS[d][1]}: ${r.map(k=>e(k.slice(2))+' ×'+sum[k]).join(', ')}</div>`:''}).join('')+`</div>`;
+  h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取':'Waiting 待取'}</span></div>
+  <div>${o.items.map(x=>e(x.zh||x.en)+' ×'+x.q).join(', ')}</div>
+  <div class="mu">${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)}${o.note?' · 📝 '+e(o.note):''}</div>
+  <div class="row" style="margin-top:8px;gap:6px"><button class="sm ok" onclick="toggleDone('${o.id}');render()">${o.done?'Undo':'✔ Picked up'}</button>
+  <button class="sm" onclick="showQR(orders.find(x=>x.id==='${o.id}'))">QR</button>
+  <a href="sms:${e(o.phone)}"><button class="sm">💬 SMS</button></a>
+  <button class="sm" onclick="if(confirm('Delete?')){orders=orders.filter(x=>x.id!=='${o.id}');sv('orders',orders);render()}">🗑</button></div></div>`).join('')||'<p class="mu c">No orders 沒有訂單</p>';
+ }else{
+  h=`<h1>Setup 設定</h1><h2>Shop 店家</h2>
+  <input id="sn" placeholder="Shop name 店名" value="${e(shop.name)}"><input id="sa" placeholder="Address 地址" value="${e(shop.addr)}" style="margin-top:8px">
+  <input id="sh" placeholder="Hours 營業時間" value="${e(shop.hours)}" style="margin-top:8px"><input id="sl" placeholder="LINE ID (e.g. @myshop)" value="${e(shop.line)}" style="margin-top:8px">
+  <h2>Products 商品</h2>`+products.map((p,i)=>`<div class="row" style="gap:6px;margin:6px 0"><input data-z="${i}" value="${e(p.zh)}" placeholder="中文"><input data-e="${i}" value="${e(p.en)}" placeholder="English"><button class="sm" onclick="saveSet();products.splice(${i},1);sv('products',products);render()">✕</button></div>`).join('')+
+  `<button class="sm" onclick="saveSet();products.push({en:'',zh:''});render()">+ Add product 新增商品</button>
+  <button class="pri" style="margin-top:14px" onclick="saveSet();alert('Saved 已儲存')">Save 儲存</button>
+  <p class="mu">Prototype: orders are stored on this phone only. 訂單只存在這支手機。</p>`;
+ }
+ $('#app').innerHTML=h+nav;
+ const sq=$('#sq');if(sq)sq.oninput=()=>{q=sq.value;const p=sq.selectionStart;render();const n=$('#sq');n.focus();n.setSelectionRange(p,p)}}
+function keep(){const a=$('#ph');if(a)phoneDraft=a.value;const b=$('#tm');if(b)timeDraft=b.value;const c=$('#nt');if(c)noteDraft=c.value}
+function saveSet(){shop={name:$('#sn').value,addr:$('#sa').value,hours:$('#sh').value,line:$('#sl').value};sv('shop',shop);
+ document.querySelectorAll('[data-z]').forEach(i=>products[i.dataset.z].zh=i.value);document.querySelectorAll('[data-e]').forEach(i=>products[i.dataset.e].en=i.value);
+ products=products.filter(p=>p.en||p.zh);sv('products',products)}
+addEventListener('hashchange',render);render();
+</script></body></html>
