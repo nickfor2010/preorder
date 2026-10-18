@@ -67,13 +67,14 @@ function customer(d){
  <div class="mu" style="margin-top:6px">${T('Show this page or your photo at the shop. Pay at pickup.','取貨時請出示此畫面或截圖，現場付款。')}</div></div>
  <a href="https://line.me/R/share?text=${encodeURIComponent(msg)}"><button class="pri ok" style="margin-top:6px">💬 ${T('Send to my LINE','傳到我的 LINE')}</button></a>
  ${sl?`<a href="https://line.me/R/ti/p/${encodeURIComponent(sl)}"><button class="pri" style="margin-top:8px;background:#06c755">${T('Add shop on LINE','加入店家 LINE')}</button></a>`:''}
- ${mine?`<div class="card" style="margin-top:14px;border-color:var(--ac)"><b>🔧 Shop only · ${mine.done?'Picked up':'Waiting'}</b><div class="mu">${e(mine.phone)}</div>
+ ${mine?`<div class="card" style="margin-top:14px;border-color:var(--ac)"><b>🔧 Shop only · ${mine.done?'Picked up '+fmt(mine.doneAt):'Waiting'}</b><div class="mu">${e(mine.phone)}</div>
  <button class="pri ok" style="margin-top:8px" onclick="toggleDone('${mine.id}');customer(window._d)">${mine.done?'Undo':'✔ Picked up 已取貨'}</button></div>`:''}`;
  window._d=d}
 
 // ---- admin ----
 function newId(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';do{s='';for(let i=0;i<4;i++)s+=a[Math.random()*a.length|0]}while(orders.some(o=>o.id===s));return s}
-function toggleDone(id){const o=orders.find(o=>o.id===id);if(o){o.done=!o.done;sv('orders',orders)}}
+const fmt=t=>t?new Date(t).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'';
+function toggleDone(id){const o=orders.find(o=>o.id===id);if(o){o.done=!o.done;o.doneAt=o.done?Date.now():null;sv('orders',orders)}}
 function create(){
  const items=products.filter((p,i)=>cart[i]>0).map((p,i)=>p).map(p=>({en:p.en,zh:p.zh,q:cart[products.indexOf(p)]}));
  const phone=phoneDraft.replace(/\D/g,'');
@@ -110,9 +111,9 @@ function render(){
   const sum={};orders.filter(o=>!o.done).forEach(o=>o.items.forEach(x=>{const k=o.day+'|'+(x.zh||x.en);sum[k]=(sum[k]||0)+x.q}));
   const sk=Object.keys(sum);
   if(sk.length&&!s)h+=`<div class="card"><b>To make 要準備</b>`+Object.keys(DAYS).map(d=>{const r=sk.filter(k=>k[0]===d);return r.length?`<div class="mu" style="margin-top:4px">${DAYS[d][1]}: ${r.map(k=>e(k.slice(2))+' ×'+sum[k]).join(', ')}</div>`:''}).join('')+`</div>`;
-  h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取':'Waiting 待取'}</span></div>
+  h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取 '+fmt(o.doneAt):'Waiting 待取'}</span></div>
   <div>${o.items.map(x=>e(x.zh||x.en)+' ×'+x.q).join(', ')}</div>
-  <div class="mu">${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)}${o.note?' · 📝 '+e(o.note):''}</div>
+  <div class="mu">${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)} · Ordered 下單 ${fmt(o.at)}${o.note?' · 📝 '+e(o.note):''}</div>
   <div class="row" style="margin-top:8px;gap:6px"><button class="sm ok" onclick="toggleDone('${o.id}');render()">${o.done?'Undo':'✔ Picked up'}</button>
   <button class="sm" onclick="showQR(orders.find(x=>x.id==='${o.id}'))">QR</button>
   <a href="sms:${e(o.phone)}"><button class="sm">💬 SMS</button></a>
