@@ -33,11 +33,11 @@ const $=s=>document.querySelector(s);
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(x){return d}};
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(x){}};
-const DAYS={t:['Today','今天'],m:['Tomorrow','明天'],n:['Next market','下次市集']};
+const DAYS={t:['Today','今天'],m:['Tomorrow','明天'],n:['Next market','下次市集'],s:['In shop','到店']};
 let products=ld('products',[{en:'Egg tart',zh:'蛋塔'},{en:'Pineapple cake',zh:'鳳梨酥'},{en:'Sourdough loaf',zh:'酸種麵包'}]);
 let shop=ld('shop',{name:'My Shop 我的店',addr:'',hours:'',line:''});
 let orders=ld('orders',[]);
-let tab='new',cart={},day='t',phoneDraft='',timeDraft='',noteDraft='',q='';
+let tab='new',cart={},day='t',dateDraft='',nameDraft='',paidDraft=false,phoneDraft='',timeDraft='',noteDraft='',q='';
 
 // ---- QR (black on white SVG) ----
 function qrSvg(text){const k=qrcode(0,'M');k.addData(text,'Byte');k.make();const n=k.getModuleCount();let p='';
@@ -46,7 +46,7 @@ function qrSvg(text){const k=qrcode(0,'M');k.addData(text,'Byte');k.make();const
 const b64=o=>{const b=new TextEncoder().encode(JSON.stringify(o));let s='';b.forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const unb64=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t),b=Uint8Array.from(s,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))};
 const base=()=>location.href.split('#')[0];
-const link=o=>base()+'#o='+b64({i:o.id,it:o.items.map(x=>[x.en,x.zh,x.q]),d:o.day,t:o.time,n:o.note,s:[shop.name,shop.addr,shop.hours,shop.line]});
+const link=o=>base()+'#o='+b64({i:o.id,it:o.items.map(x=>[x.en,x.zh,x.q]),d:o.day,dt:o.date,p:o.paid?1:0,t:o.time,n:o.note,s:[shop.name,shop.addr,shop.hours,shop.line]});
 
 // ---- customer view ----
 let lang=(navigator.language||'').toLowerCase().startsWith('zh')?1:0;
@@ -54,7 +54,7 @@ const T=(a,z)=>lang?z:a;
 function customer(d){
  const [sn,sa,sh,sl]=d.s||[];
  const items=d.it.map(x=>`<div class="row" style="font-size:19px;padding:6px 0"><span>${e(lang?x[1]||x[0]:x[0])}</span><b>× ${x[2]}</b></div>`).join('');
- const dayT=DAYS[d.d]?DAYS[d.d][lang]:'';
+ const dayT=dl({day:d.d,date:d.dt},lang);
  const msg=`${sn}\n${T('Order','訂單')} #${d.i}\n`+d.it.map(x=>`${lang?x[1]||x[0]:x[0]} × ${x[2]}`).join('\n')+`\n${T('Pickup','取貨')}: ${dayT} ${d.t||''}\n${sa||''}`;
  const mine=orders.find(o=>o.id===d.i);
  $('#app').innerHTML=`<button class="sm lang" onclick="lang=1-lang;customer(window._d)">${lang?'English':'中文'}</button>
@@ -64,15 +64,19 @@ function customer(d){
  <div class="card"><div class="mu">${T('Pickup','取貨時間')}</div><div style="font-size:24px;font-weight:700">${e(dayT)} ${e(d.t||'')}</div>
  ${d.n?`<div class="mu" style="margin-top:6px">📝 ${e(d.n)}</div>`:''}</div>
  <div class="card"><b>${e(sn)}</b>${sa?`<div>📍 ${e(sa)}</div>`:''}${sh?`<div>🕐 ${e(sh)}</div>`:''}
- <div class="mu" style="margin-top:6px">${T('Show this page or your photo at the shop. Pay at pickup.','取貨時請出示此畫面或截圖，現場付款。')}</div></div>
+ <div class="mu" style="margin-top:6px">${T('Show this page or your photo at the shop.','取貨時請出示此畫面或截圖。')+' '+(d.p?T('✔ Paid','✔ 已付款'):T('Pay at pickup.','現場付款。'))}</div></div>
  <a href="https://line.me/R/share?text=${encodeURIComponent(msg)}"><button class="pri ok" style="margin-top:6px">💬 ${T('Send to my LINE','傳到我的 LINE')}</button></a>
  ${sl?`<a href="https://line.me/R/ti/p/${encodeURIComponent(sl)}"><button class="pri" style="margin-top:8px;background:#06c755">${T('Add shop on LINE','加入店家 LINE')}</button></a>`:''}
- ${mine?`<div class="card" style="margin-top:14px;border-color:var(--ac)"><b>🔧 Shop only · ${mine.done?'Picked up '+fmt(mine.doneAt):'Waiting'}</b><div class="mu">${e(mine.phone)}</div>
+ ${mine?`<div class="card" style="margin-top:14px;border-color:var(--ac)"><b>🔧 Shop only · ${mine.done?'Picked up '+fmt(mine.doneAt):'Waiting'}</b><div class="mu">${e(mine.name?mine.name+' · ':'')}${e(mine.phone)} · ${mine.paid?'💰 Paid 已付款':'Not paid 未付款'}</div>
  <button class="pri ok" style="margin-top:8px" onclick="toggleDone('${mine.id}');customer(window._d)">${mine.done?'Undo':'✔ Picked up 已取貨'}</button></div>`:''}`;
  window._d=d}
 
 // ---- admin ----
 function newId(){const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';do{s='';for(let i=0;i<4;i++)s+=a[Math.random()*a.length|0]}while(orders.some(o=>o.id===s));return s}
+const fmtDate=(d,l)=>new Date(d+'T00:00').toLocaleDateString(l?'zh-TW':'en-US',{month:'short',day:'numeric',weekday:'short'});
+const dl=(o,l)=>{const a=DAYS[o.day]?DAYS[o.day][l]:'',b=o.date?fmtDate(o.date,l):'';return a&&b?a+' '+b:a+b};
+const gl=g=>DAYS[g]?DAYS[g][1]:fmtDate(g,1);
+function togglePaid(id){const o=orders.find(o=>o.id===id);if(o){o.paid=!o.paid;sv('orders',orders)}}
 const fmt=t=>t?new Date(t).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'';
 function toggleDone(id){const o=orders.find(o=>o.id===id);if(o){o.done=!o.done;o.doneAt=o.done?Date.now():null;sv('orders',orders)}}
 function create(){
@@ -80,15 +84,15 @@ function create(){
  const phone=phoneDraft.replace(/\D/g,'');
  if(!items.length)return alert('Pick at least one item 請選商品');
  if(phone.length<4)return alert('Phone number needed 請輸入電話');
- const o={id:newId(),phone,items,day,time:timeDraft,note:noteDraft,done:false,at:Date.now()};
- orders.unshift(o);sv('orders',orders);cart={};phoneDraft='';timeDraft='';noteDraft='';showQR(o)}
+ const o={id:newId(),name:nameDraft.trim(),phone,items,day,date:day==='s'?dateDraft:'',paid:paidDraft,time:timeDraft,note:noteDraft,done:false,at:Date.now()};
+ orders.unshift(o);sv('orders',orders);cart={};phoneDraft='';nameDraft='';dateDraft='';paidDraft=false;timeDraft='';noteDraft='';day='t';showQR(o)}
 function showQR(o){
  const url=link(o);
  const d=document.createElement('div');d.className='ov';d.id='ov';
  d.innerHTML=`<div class="c"><h1>#${e(o.id)}</h1><div class="mu">Ask the customer to take a photo 請客人拍照</div>
  <div class="qrbox">${qrSvg(url)}</div>
  <div style="font-size:20px">${o.items.map(x=>e(x.zh||x.en)+' × '+x.q).join('<br>')}</div>
- <div class="mu" style="margin:8px 0">${DAYS[o.day][0]} ${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)}</div>
+ <div class="mu" style="margin:8px 0">${dl(o,0)} ${dl(o,1)} ${e(o.time)}<br>${e(o.name)} ${e(o.phone)}${o.paid?' · 💰 Paid 已付款':''}</div>
  <button class="pri" onclick="$('#ov').remove();render()">Done 完成</button>
  <p class="mu" style="word-break:break-all"><a href="${e(url)}" target="_blank">Preview customer page 預覽</a></p></div>`;
  document.body.appendChild(d)}
@@ -99,22 +103,24 @@ function render(){
  if(tab==='new'){
   h=`<h1>New order 新訂單</h1>`+products.map((p,i)=>`<div class="card row"><div><b>${e(p.zh)}</b><div class="mu">${e(p.en)}</div></div>
   <div class="qty"><button onclick="cart[${i}]=Math.max(0,(cart[${i}]||0)-1);keep();render()">−</button><b>${cart[i]||0}</b><button onclick="cart[${i}]=(cart[${i}]||0)+1;keep();render()">+</button></div></div>`).join('')+
-  `<h2>Pickup 取貨</h2><div class="chips">${Object.keys(DAYS).map(k=>`<button class="${day===k?'on':''}" onclick="keep();day='${k}';render()">${DAYS[k][0]}<br>${DAYS[k][1]}</button>`).join('')}</div>
+  `<h2>Pickup 取貨</h2><div class="chips">${Object.keys(DAYS).map(k=>`<button class="${day===k?'on':''}" onclick="keep();day='${k}';dateDraft='';render()">${DAYS[k][0]}<br>${DAYS[k][1]}</button>`).join('')}</div>
+  ${day==='s'?`<div class="mu" style="margin-top:8px">Pick a date 選日期</div><input id="dt" type="date" value="${e(dateDraft)}">`:''}
   <input id="tm" placeholder="Time 時間 (e.g. after 3pm 下午三點後)" value="${e(timeDraft)}" style="margin-top:8px">
-  <h2>Phone 電話</h2><input id="ph" type="tel" inputmode="numeric" placeholder="09xx xxx xxx" value="${e(phoneDraft)}">
+  <h2>Customer 客人</h2><input id="nm" placeholder="Name 姓名" value="${e(nameDraft)}" style="margin-bottom:8px"><input id="ph" type="tel" inputmode="numeric" placeholder="09xx xxx xxx" value="${e(phoneDraft)}">
   <input id="nt" placeholder="Note 備註 (optional)" value="${e(noteDraft)}" style="margin-top:8px">
+  <label class="card row" style="font-size:18px;margin-top:10px"><span>💰 Already paid 已付款</span><input id="pd" type="checkbox" ${paidDraft?'checked':''} style="width:28px;height:28px"></label>
   <button class="pri" style="margin-top:14px" onclick="keep();create()">Create QR 產生 QR</button>`;
  }else if(tab==='list'){
   const s=q.replace(/\D/g,'');
-  let L=orders.filter(o=>!s||o.phone.includes(s)||o.id.toLowerCase()===q.toLowerCase());
-  h=`<h1>Orders 訂單</h1><input id="sq" placeholder="Search phone (last 4 digits) 搜尋電話後四碼" value="${e(q)}" inputmode="search">`;
-  const sum={};orders.filter(o=>!o.done).forEach(o=>o.items.forEach(x=>{const k=o.day+'|'+(x.zh||x.en);sum[k]=(sum[k]||0)+x.q}));
-  const sk=Object.keys(sum);
-  if(sk.length&&!s)h+=`<div class="card"><b>To make 要準備</b>`+Object.keys(DAYS).map(d=>{const r=sk.filter(k=>k[0]===d);return r.length?`<div class="mu" style="margin-top:4px">${DAYS[d][1]}: ${r.map(k=>e(k.slice(2))+' ×'+sum[k]).join(', ')}</div>`:''}).join('')+`</div>`;
-  h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取 '+fmt(o.doneAt):'Waiting 待取'}</span></div>
+  let L=orders.filter(o=>!q||(s&&o.phone.includes(s))||(o.name||'').toLowerCase().includes(q.toLowerCase())||o.id.toLowerCase()===q.toLowerCase());
+  h=`<h1>Orders 訂單</h1><input id="sq" placeholder="Search name or phone 搜尋姓名或電話" value="${e(q)}" inputmode="search">`;
+  const G={};orders.filter(o=>!o.done).forEach(o=>{const g=o.date||o.day;G[g]=G[g]||{};o.items.forEach(x=>{const k=x.zh||x.en;G[g][k]=(G[g][k]||0)+x.q})});
+  const gk=Object.keys(G).sort((a,b)=>{const ia=Object.keys(DAYS).indexOf(a),ib=Object.keys(DAYS).indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib)||a.localeCompare(b)});
+  if(gk.length&&!q)h+=`<div class="card"><b>To make 要準備</b>`+gk.map(g=>`<div class="mu" style="margin-top:4px"><b>${e(gl(g))}</b>: ${Object.keys(G[g]).map(k=>e(k)+' ×'+G[g][k]).join(', ')}</div>`).join('')+`</div>`;
+  h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.paid?'d':''}" style="margin-left:auto;margin-right:6px" onclick="">${o.paid?'💰 Paid':'Unpaid'}</span><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取 '+fmt(o.doneAt):'Waiting 待取'}</span></div>
   <div>${o.items.map(x=>e(x.zh||x.en)+' ×'+x.q).join(', ')}</div>
-  <div class="mu">${DAYS[o.day][1]} ${e(o.time)} · ${e(o.phone)} · Ordered 下單 ${fmt(o.at)}${o.note?' · 📝 '+e(o.note):''}</div>
-  <div class="row" style="margin-top:8px;gap:6px"><button class="sm ok" onclick="toggleDone('${o.id}');render()">${o.done?'Undo':'✔ Picked up'}</button>
+  <div class="mu">${e(o.name)} ${e(o.phone)} · ${dl(o,1)} ${e(o.time)} · Ordered 下單 ${fmt(o.at)}${o.note?' · 📝 '+e(o.note):''}</div>
+  <div class="row" style="margin-top:8px;gap:6px"><button class="sm" onclick="togglePaid('${o.id}');render()">${o.paid?'Unpaid':'💰 Paid'}</button><button class="sm ok" onclick="toggleDone('${o.id}');render()">${o.done?'Undo':'✔ Picked up'}</button>
   <button class="sm" onclick="showQR(orders.find(x=>x.id==='${o.id}'))">QR</button>
   <a href="sms:${e(o.phone)}"><button class="sm">💬 SMS</button></a>
   <button class="sm" onclick="if(confirm('Delete?')){orders=orders.filter(x=>x.id!=='${o.id}');sv('orders',orders);render()}">🗑</button></div></div>`).join('')||'<p class="mu c">No orders 沒有訂單</p>';
@@ -129,7 +135,7 @@ function render(){
  }
  $('#app').innerHTML=h+nav;
  const sq=$('#sq');if(sq)sq.oninput=()=>{q=sq.value;const p=sq.selectionStart;render();const n=$('#sq');n.focus();n.setSelectionRange(p,p)}}
-function keep(){const a=$('#ph');if(a)phoneDraft=a.value;const b=$('#tm');if(b)timeDraft=b.value;const c=$('#nt');if(c)noteDraft=c.value}
+function keep(){const n=$('#nm');if(n)nameDraft=n.value;const dd=$('#dt');if(dd)dateDraft=dd.value;const pd=$('#pd');if(pd)paidDraft=pd.checked;const a=$('#ph');if(a)phoneDraft=a.value;const b=$('#tm');if(b)timeDraft=b.value;const c=$('#nt');if(c)noteDraft=c.value}
 function saveSet(){shop={name:$('#sn').value,addr:$('#sa').value,hours:$('#sh').value,line:$('#sl').value};sv('shop',shop);
  document.querySelectorAll('[data-z]').forEach(i=>products[i.dataset.z].zh=i.value);document.querySelectorAll('[data-e]').forEach(i=>products[i.dataset.e].en=i.value);
  products=products.filter(p=>p.en||p.zh);sv('products',products)}
