@@ -30,6 +30,8 @@ nav button{flex:1;border-radius:0;background:none;padding:14px 4px}nav .on{color
 .mu{color:var(--mu);font-size:14px}.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:13px;background:var(--bd)}.tag.d{background:var(--ok);color:#fff}
 .ov{position:fixed;inset:0;background:var(--bg);z-index:20;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 14px 30px}
 .lang{float:right}.c{text-align:center}
+#rep table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}#rep td,#rep th{border:1px solid #999;padding:4px;text-align:left;vertical-align:top}#rep th{background:#eee}
+@media print{main,nav,#ov,.noprint{display:none!important}#rep{position:static!important;overflow:visible!important;padding:0!important}body{background:#fff}}
 </style></head><body><main id="app"></main>
 <script>
 const $=s=>document.querySelector(s);
@@ -40,7 +42,7 @@ const DAYS={t:['Today','今天'],m:['Tomorrow','明天'],n:['Next market','下�
 let products=ld('products',[{en:'Egg tart',zh:'蛋塔'},{en:'Pineapple cake',zh:'鳳梨酥'},{en:'Sourdough loaf',zh:'酸種麵包'}]);
 let shop=ld('shop',{name:'My Shop 我的店',addr:'',hours:'',line:''});
 let orders=ld('orders',[]);
-let tab='new',cart={},day='t',dateDraft='',nameDraft='',paidDraft=false,phoneDraft='',timeDraft='',noteDraft='',q='';
+let lastList=null,tab='new',cart={},day='t',dateDraft='',nameDraft='',paidDraft=false,phoneDraft='',timeDraft='',noteDraft='',q='';
 
 // ---- QR (black on white SVG) ----
 function qrSvg(text){const k=qrcode(0,'M');k.addData(text,'Byte');k.make();const n=k.getModuleCount();let p='';
@@ -120,6 +122,7 @@ function render(){
   const G={};orders.filter(o=>!o.done).forEach(o=>{const g=o.date||o.day;G[g]=G[g]||{};o.items.forEach(x=>{const k=x.zh||x.en;G[g][k]=(G[g][k]||0)+x.q})});
   const gk=Object.keys(G).sort((a,b)=>{const ia=Object.keys(DAYS).indexOf(a),ib=Object.keys(DAYS).indexOf(b);return (ia<0?9:ia)-(ib<0?9:ib)||a.localeCompare(b)});
   if(gk.length&&!q)h+=`<div class="card"><b>To make 要準備</b>`+gk.map(g=>`<div class="mu" style="margin-top:4px"><b>${e(gl(g))}</b>: ${Object.keys(G[g]).map(k=>e(k)+' ×'+G[g][k]).join(', ')}</div>`).join('')+`</div>`;
+  lastList=L;h+=`<button class="sm" style="margin:10px 0 2px" onclick="exportPdf()">📄 Export PDF 匯出</button>`;
   h+=L.map(o=>`<div class="card"><div class="row"><b style="font-size:20px">#${e(o.id)}</b><span class="tag ${o.paid?'d':''}" style="margin-left:auto;margin-right:6px" onclick="">${o.paid?'💰 Paid':'Unpaid'}</span><span class="tag ${o.done?'d':''}">${o.done?'Picked up 已取 '+fmt(o.doneAt):'Waiting 待取'}</span></div>
   <div>${o.items.map(x=>e(x.zh||x.en)+' ×'+x.q).join(', ')}</div>
   <div class="mu">${e(o.name)} ${e(o.phone)} · ${dl(o,1)} ${e(o.time)} · Ordered 下單 ${fmt(o.at)}${o.note?' · 📝 '+e(o.note):''}</div>
@@ -138,6 +141,16 @@ function render(){
  }
  $('#app').innerHTML=h+nav;
  const sq=$('#sq');if(sq)sq.oninput=()=>{q=sq.value;const p=sq.selectionStart;render();const n=$('#sq');n.focus();n.setSelectionRange(p,p)}}
+function exportPdf(){
+ const L=lastList||orders,u={};L.forEach(o=>o.items.forEach(x=>{const k=x.zh||x.en;u[k]=(u[k]||0)+x.q}));
+ const rows=L.map(o=>`<tr><td>${e(o.id)}</td><td>${e(o.name)}</td><td>${e(o.phone)}</td><td>${o.items.map(x=>e(x.zh||x.en)+' ×'+x.q).join('<br>')}</td><td>${e(dl(o,1))} ${e(o.time)}</td><td>${o.paid?'✔':''}</td><td>${o.done?'✔ '+fmt(o.doneAt):''}</td><td>${e(o.note)}</td></tr>`).join('');
+ const d=document.createElement('div');d.id='rep';d.className='ov';d.style.cssText='background:#fff;color:#000';
+ d.innerHTML=`<div class="noprint c" style="margin-bottom:10px"><button class="pri" onclick="window.print()">🖨 Print / Save as PDF 列印／存成 PDF</button>
+ <p style="font-size:13px;color:#555">iPhone: in the print preview, pinch out on the page, then tap Share → Save to Files.<br>若無法列印，請在 Safari 開啟，或直接截圖。</p><button class="sm" onclick="$('#rep').remove()">Close 關閉</button></div>
+ <h2 style="color:#000;margin:0">${e(shop.name)} · Orders 訂單 · ${new Date().toLocaleDateString('zh-TW')}</h2>
+ <p style="margin:4px 0">${L.length} orders · Paid 已付 ${L.filter(o=>o.paid).length} · Picked up 已取 ${L.filter(o=>o.done).length}<br>${Object.keys(u).map(k=>e(k)+' ×'+u[k]).join(' · ')}</p>
+ <div style="overflow-x:auto"><table><tr><th>#</th><th>Name 姓名</th><th>Phone 電話</th><th>Items 商品</th><th>Pickup 取貨</th><th>Paid 付款</th><th>Picked up 已取</th><th>Note 備註</th></tr>${rows}</table></div>`;
+ document.body.appendChild(d)}
 function keep(){const n=$('#nm');if(n)nameDraft=n.value;const dd=$('#dt');if(dd)dateDraft=dd.value;const pd=$('#pd');if(pd)paidDraft=pd.checked;const a=$('#ph');if(a)phoneDraft=a.value;const b=$('#tm');if(b)timeDraft=b.value;const c=$('#nt');if(c)noteDraft=c.value}
 function saveSet(){shop={name:$('#sn').value,addr:$('#sa').value,hours:$('#sh').value,line:$('#sl').value};sv('shop',shop);
  document.querySelectorAll('[data-z]').forEach(i=>products[i.dataset.z].zh=i.value);document.querySelectorAll('[data-e]').forEach(i=>products[i.dataset.e].en=i.value);
