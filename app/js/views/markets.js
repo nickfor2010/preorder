@@ -33,7 +33,8 @@ export async function marketEditView(id) {
       <div class="row gap nums">
         <label>Price 價格<input type="number" inputmode="numeric" min="0" class="price" value="${r ? r.price : p.default_price}"></label>
         <label>Bring 帶貨量<input type="number" inputmode="numeric" min="0" class="qty" value="${r ? r.qty_brought : ''}" placeholder="0"></label>
-      </div></div>`;
+      </div>
+      <label class="row small mt so-l"><input type="checkbox" class="so" ${r?.sold_out ? 'checked' : ''}><span class="mu">Sold out now 現在售完 (hide from sale)</span></label></div>`;
   };
 
   return {
@@ -93,6 +94,7 @@ export async function marketEditView(id) {
             market_id: m.id, product_id: pid, sort: order[pid] ?? 0,
             price: Math.max(0, Number($('.price', card).value) || 0),
             qty_brought: Math.max(0, Number($('.qty', card).value) || 0),
+            sold_out: $('.so', card).checked,
           });
           else if (inMarket[pid]) drop.push(pid);
         });

@@ -68,6 +68,31 @@ export function deleteOrder(id) {
 }
 export function discardErrors() { O.outbox = O.outbox.filter(c => !c.err); saveLocal(); notify(); }
 
+// ---- walk-up sales ---------------------------------------------------------
+export function addSale(sale) {
+  sale = { id: uuid(), qty: 1, created_at: new Date().toISOString(), created_by: S.email, ...sale };
+  O.outbox.push({ op: 'sale', sale });
+  saveLocal(); notify(); sync();
+  return sale;
+}
+export function undoSale(sale) {
+  const i = O.outbox.findIndex(c => c.op === 'sale' && c.sale.id === sale.id && !c.sending);
+  if (i >= 0) O.outbox.splice(i, 1);                 // never sent: just forget it
+  else O.outbox.push({ op: 'unsale', id: sale.id, market_id: sale.market_id, product_id: sale.product_id, qty: sale.qty });
+  saveLocal(); notify(); sync();
+}
+// sales not yet on the server (+) and undos not yet on the server (−), per product, for one market
+export function pendingSaleQty(marketId) {
+  const out = {};
+  for (const c of O.outbox) {
+    if (c.op === 'sale' && c.sale.market_id === marketId) out[c.sale.product_id] = (out[c.sale.product_id] || 0) + c.sale.qty;
+    if (c.op === 'unsale' && c.market_id === marketId && !c.err) out[c.product_id] = (out[c.product_id] || 0) - c.qty;
+  }
+  return out;
+}
+export const pendingSales = marketId => O.outbox.filter(c => c.op === 'sale' && c.sale.market_id === marketId).map(c => ({ ...c.sale, _pending: true }));
+export const pendingUnsales = () => new Set(O.outbox.filter(c => c.op === 'unsale').map(c => c.id));
+
 // ---- sending the outbox --------------------------------------------------
 const isNetwork = e => /fetch|network|Failed|Load failed|timeout/i.test(e?.message || String(e));
 
@@ -83,6 +108,11 @@ export async function sync() {
         if (c.op === 'save') await sendSave(c);
         else if (c.op === 'patch') await q(sb.from('orders').update(c.patch).eq('id', c.id));
         else if (c.op === 'del') await q(sb.from('orders').delete().eq('id', c.id));
+        else if (c.op === 'sale') await q(sb.from('sales').upsert(c.sale, { onConflict: 'id', ignoreDuplicates: true }));
+        else if (c.op === 'unsale') {
+          const gone = await q(sb.from('sales').delete().eq('id', c.id).select('id'));
+          if (!gone.length) throw new Error('Too late to undo (over 10 minutes) — ask the owner. 超過10分鐘無法復原，請找老闆。');
+        }
         O.outbox.splice(i--, 1);
         saveLocal();
       } catch (e) {
