@@ -31,3 +31,9 @@ export const fmtTime = t => t ? new Date(t).toLocaleTimeString(lang === 'zh' ? '
 export const fmtDateTime = t => t ? new Date(t).toLocaleString(lang === 'zh' ? 'zh-TW' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
 
 export const PAY = () => ({ cash: T('Cash', '現金'), linepay: 'LINE Pay', transfer: T('Transfer', '轉帳'), unknown: T('Not recorded', '未記錄') });
+
+// run fn with another language for a moment (e.g. to write a message in both languages)
+export function inLang(l, fn) {
+  const old = lang; lang = l;
+  try { return fn(); } finally { lang = old; }
+}

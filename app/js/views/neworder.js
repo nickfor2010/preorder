@@ -1,8 +1,8 @@
 // New pre-order: pick items, pickup, customer → QR.
-import { html, $, $$, toast, today, addDays, money, digits } from '../util.js';
+import { html, str, $, $$, toast, today, addDays, money, digits } from '../util.js';
 import { T, pname, fmtDate, PAY } from '../i18n.js';
 import { icon } from '../icons.js';
-import { S, marketProducts, marketStock, ensureBasics } from '../db.js';
+import { sb, q, S, marketProducts, marketStock, ensureBasics } from '../db.js';
 import { go } from '../app.js';
 import { createOrder, allOrders } from '../orders.js';
 
@@ -52,6 +52,35 @@ export async function newOrderView() {
     if (n == null) return '';
     return html`<span class="pill ${n <= 0 ? 'bad' : n <= 3 ? 'warn' : ''}">${n <= 0 ? T('Sold out', '售完') : T(`${n} left`, `剩 ${n}`)}</span>`;
   };
+  let last = null;                       // the customer's previous order (for "same as last time")
+  async function lookup(phone) {
+    const box = $('#regular');
+    if (!box) return;
+    if (phone.length < 8) { box.innerHTML = ''; last = null; return; }
+    let past = allOrders().filter(o => o.phone === phone && !o._pending);
+    try {
+      past = await q(sb.from('orders').select('id,customer_name,created_at,status,items:order_items(product_id,name_zh,name_en,qty)')
+        .eq('phone', phone).order('created_at', { ascending: false }).limit(30));
+    } catch { /* offline: use what this phone knows */ }
+    if (digits(D.phone) !== phone) return;        // they kept typing
+    if (!past.length) { box.innerHTML = ''; last = null; return; }
+    last = past[0];
+    const name = past.find(o => o.customer_name)?.customer_name || '';
+    const fav = {};
+    for (const o of past) for (const i of o.items || []) { const k = pname(i); fav[k] = (fav[k] || 0) + i.qty; }
+    const top = Object.entries(fav).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+    box.innerHTML = str(html`<div class="card regular">
+      <div class="row"><span class="lead-badge">${icon('users')}</span>
+        <div class="grow"><b>${name ? T(`Welcome back, ${name}`, `歡迎回來，${name}`) : T('Returning customer', '老客人')}</b>
+        <div class="mu small">${T(`${past.length} orders · last on ${fmtDate(past[0].created_at.slice(0, 10))}`, `${past.length} 筆訂單 · 上次 ${fmtDate(past[0].created_at.slice(0, 10))}`)}</div></div></div>
+      ${top.length ? html`<div class="mu small">${T('Usually orders', '常點')}：${top.join('、')}</div>` : ''}
+      <div class="row gap4 wrap">
+        ${name && !D.name ? html`<button class="btn sm" data-act="useName" data-name="${name}">${T(`Use name “${name}”`, `填入姓名「${name}」`)}</button>` : ''}
+        <button class="btn sm" data-act="repeat">${icon('undo')}${T('Same as last time', '跟上次一樣')}</button>
+      </div></div>`);
+    if (name && !D.name) { D.name = name; $('#name').value = name; $('[data-act=useName]')?.remove(); }
+  }
+
   const PICKS = [['t', T('Today', '今天')], ['m', T('Tomorrow', '明天')], ['n', T('Next market', '下次市集')], ['s', T('In shop', '到店')]];
 
   return {
@@ -77,6 +106,7 @@ export async function newOrderView() {
 
       <div class="h2">${T('Customer', '客人')}</div>
       <input id="phone" type="tel" inputmode="numeric" autocomplete="off" placeholder="${T('Phone number', '電話號碼')}" value="${D.phone}">
+      <div id="regular"></div>
       <input id="name" placeholder="${T('Name (optional)', '姓名（選填）')}" value="${D.name}">
       <input id="note" placeholder="${T('Note — the customer can see this', '備註（客人看得到）')}" value="${D.note}">
       <label class="card check-row"><span class="grow"><b>${T('Already paid', '已付款')}</b></span><input id="paid" type="checkbox" ${D.paid ? 'checked' : ''} data-change="paid"></label>
@@ -87,6 +117,11 @@ export async function newOrderView() {
       <button class="btn ghost block" data-act="clear">${T('Clear form', '清除')}</button>`,
     after(root) {
       ['time', 'phone', 'name', 'note'].forEach(k => $('#' + k, root).addEventListener('input', e => D[k] = e.target.value));
+      // returning customer: look the phone number up as it is typed
+      let t;
+      const look = () => { clearTimeout(t); t = setTimeout(() => lookup(digits(D.phone)), 350); };
+      $('#phone', root).addEventListener('input', look);
+      if (digits(D.phone).length >= 8) lookup(digits(D.phone));
     },
     actions: {
       plus: el => bump(el, +1, rows, left),
@@ -103,6 +138,17 @@ export async function newOrderView() {
       paid(el) { D.paid = el.checked; $('#payrow').classList.toggle('hide', !D.paid); },
       pay(el) { D.pay = el.dataset.k; $$('#payrow button').forEach(b => b.classList.toggle('on', b === el)); },
       clear() { D = freshDraft(); go('#/new'); },
+      useName(el) { D.name = el.dataset.name; $('#name').value = D.name; el.remove(); },
+      repeat() {
+        if (!last) return;
+        let added = 0;
+        D.cart = {};
+        for (const i of last.items || []) if (rows.some(r => r.product_id === i.product_id)) { D.cart[i.product_id] = (D.cart[i.product_id] || 0) + i.qty; added++; }
+        $$('.item').forEach(card => { const n = D.cart[card.dataset.pid] || 0; $('.n', card).textContent = n; card.classList.toggle('picked', n > 0); });
+        $('#tot').textContent = money(total(rows));
+        toast(added ? T('Added the same items as last time', '已加入上次的商品') : T('Last time’s items aren’t sold at this market', '上次的商品這場沒有販售'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
       create() {
         const items = rows.filter(r => D.cart[r.product_id] > 0).map(r => ({
           product_id: r.product_id, name_en: r.p.name_en, name_zh: r.p.name_zh, qty: D.cart[r.product_id], unit_price: r.price,

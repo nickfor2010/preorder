@@ -1,6 +1,6 @@
 // Orders list, one order's page, and the full-screen QR.
 import { html, str, $, $$, toast, money, choose, store, digits } from '../util.js';
-import { T, pname, fmtDateTime, PAY } from '../i18n.js';
+import { T, pname, fmtDateTime, PAY, inLang } from '../i18n.js';
 import { icon } from '../icons.js';
 import { S } from '../db.js';
 import { go } from '../app.js';
@@ -103,9 +103,36 @@ export function ordersView() {
       ...syncActions,
       filter(el) { F = el.dataset.k; store.set('ordFilter', F); $$('#ff button').forEach(b => b.classList.toggle('on', b === el)); $('#olist').innerHTML = listHtml(); },
       pickup: el => markPickedUp(getOrder(el.dataset.id)),
-      ready: el => patchOrder(el.dataset.id, { status: 'ready' }),
+      ready: el => markReady(el.dataset.id),
     },
   };
+}
+
+// ---- "your order is ready" message ------------------------------------------
+// Written in Chinese and English together (we don't know which the customer reads).
+export function readyMessage(o) {
+  const shop = S.org?.name || '';
+  const zh = inLang('zh', () => `【${shop}】您好${o.customer_name ? ' ' + o.customer_name : ''}，您的訂單 #${o.code} 已準備好，可以取貨了！\n取貨：${pickupText(o)}`);
+  const en = inLang('en', () => `Your order #${o.code} is ready for pickup. Pickup: ${pickupText(o)}`);
+  const tel = S.org?.phone ? `\n店家電話 Shop phone：${S.org.phone}` : '';
+  return `${zh}\n${en}${tel}\n${customerLink(o)}`;
+}
+export const smsHref = (phone, text) => `sms:${phone}${/iPhone|iPad|iPod|Mac/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(text)}`;
+export const lineHref = text => `https://line.me/R/share?text=${encodeURIComponent(text)}`;
+
+export async function tellCustomer(o, asked = true) {
+  if (!o) return;
+  const how = await choose(T(`Tell ${o.customer_name || 'the customer'} the order is ready?`, `通知${o.customer_name || '客人'}可以取貨？`), [
+    { label: T('Send SMS', '傳簡訊') + ' · ' + o.phone, value: 'sms', cls: 'primary' },
+    { label: T('Send on LINE', '用 LINE 傳送'), value: 'line' },
+  ], asked ? T('Opens your messages app with the text ready. You only tap Send.', '會開啟訊息並自動填好內容，只要按「傳送」。') : '');
+  if (!how) return;
+  const text = readyMessage(o);
+  location.href = how === 'sms' ? smsHref(o.phone, text) : lineHref(text);
+}
+async function markReady(id) {
+  patchOrder(id, { status: 'ready' });
+  await tellCustomer(getOrder(id));
 }
 
 // ---- actions shared by list and detail -----------------------------------
@@ -155,6 +182,7 @@ export function orderView(id) {
         : html`<button class="btn block" data-act="undo">${icon('undo')}${T('Undo pickup', '取消取貨')}</button>`}
       <div class="list">
         <button data-act="paid"><span class="lead">${icon('coin')}</span><span class="grow">${o.paid ? T('Mark as unpaid', '改為未付款') : T('Mark as paid', '標記已付款')}</span></button>
+        ${o.status !== 'picked_up' ? html`<button data-act="tell"><span class="lead">${icon('message')}</span><span class="grow">${T('Tell the customer it’s ready', '通知客人可以取貨')}</span></button>` : ''}
         <a href="#/qr/${o.id}/x"><span class="lead">${icon('qr')}</span><span class="grow">${T('Show QR code', '顯示 QR code')}</span>${icon('chevron', 'chev')}</a>
         <a href="sms:${o.phone}${ios ? '&' : '?'}body=${encodeURIComponent(smsText)}"><span class="lead">${icon('message')}</span><span class="grow">${T('Send by SMS', '用簡訊傳送')}</span></a>
         <button data-act="share"><span class="lead">${icon('share')}</span><span class="grow">${T('Share link', '分享連結')}</span></button>
@@ -164,7 +192,8 @@ export function orderView(id) {
     cleanup: () => off && off(),
     actions: {
       pickup: () => markPickedUp(getOrder(id)),
-      ready: () => patchOrder(id, { status: o.status === 'ready' ? 'waiting' : 'ready' }),
+      ready: () => o.status === 'ready' ? patchOrder(id, { status: 'waiting' }) : markReady(id),
+      tell: () => tellCustomer(getOrder(id), false),
       undo: () => patchOrder(id, { status: 'ready', picked_up_at: null }),
       async paid() {
         if (o.paid) { if (confirm(T('Mark this order as not paid?', '確定改為未付款？'))) patchOrder(id, { paid: false, payment_type: null, paid_market_id: null }); return; }

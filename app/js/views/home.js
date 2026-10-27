@@ -196,6 +196,7 @@ export function moreView() {
       <div class="list">
         ${link('#/pick', 'market', T('Choose market', '選擇市集'))}
         ${owner ? link('#/summary', 'chart', T('Summary', '結算')) : ''}
+        ${link('#/export', 'note', T('Print & export', '列印與匯出'))}
         ${n ? link('#/import', 'download', T(`Import ${n} orders from the old app`, `匯入舊版 ${n} 筆訂單`)) : ''}
       </div>
       ${owner ? html`<div class="h2">${T('Set up', '設定')}</div><div class="list">

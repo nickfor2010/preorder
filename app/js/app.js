@@ -14,6 +14,7 @@ import { ordersView, orderView, qrView } from './views/orderlist.js';
 import { scanView } from './views/scan.js';
 import { importView } from './views/import.js';
 import { summaryView } from './views/summary.js';
+import { exportView, printView } from './views/export.js';
 import { sync, startLive, pendingCount, onOrdersChange } from './orders.js';
 
 // ---- screens -------------------------------------------------------------
@@ -35,6 +36,8 @@ const routes = [
   [/^#\/scan$/, scanView],
   [/^#\/import$/, importView],
   [/^#\/summary(?:\/([^/]+))?$/, summaryView, 'owner'],
+  [/^#\/export$/, exportView],
+  [/^#\/print$/, printView],
 ];
 
 let actions = {};
