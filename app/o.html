@@ -7,23 +7,36 @@
 <meta name="referrer" content="no-referrer">
 <title>Order 訂單</title>
 <link rel="icon" href="../icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap">
 <style>
-:root{--bg:#fffaf3;--card:#fff;--tx:#2b2118;--mu:#7a6a5c;--ac:#d9622b;--ok:#2e8b57;--bd:#eadfce;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#1c1713;--card:#2a231d;--tx:#f5ece2;--mu:#b5a493;--ac:#f08a52;--ok:#5cc98a;--bd:#3d342b;color-scheme:dark}}
+/* Customer receipt: one centred column, cream paper, espresso ink, terracotta order number. */
+:root{--bg:#F6F0E6;--surface:#FFFCF7;--surface-2:#EFE6D8;--line:#E4D8C7;--ink:#2B1E17;--ink-2:#6F5F52;--accent:#A8472A;--ok:#3E7A55;--ok-soft:#DDEBE0;--line-green:#06C755;
+  --serif:"Fraunces","Songti TC","Noto Serif TC",Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",system-ui,sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15110E;--surface:#1F1915;--surface-2:#2A221D;--line:#362C25;--ink:#F2E8DC;--ink-2:#B3A291;--accent:#E3875F;--ok:#86C59C;--ok-soft:#1E3326;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15110E;--surface:#1F1915;--surface-2:#2A221D;--line:#362C25;--ink:#F2E8DC;--ink-2:#B3A291;--accent:#E3875F;--ok:#86C59C;--ok-soft:#1E3326;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.45 -apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif}
-main{max-width:520px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(30px + env(safe-area-inset-bottom))}
-h1{font-size:22px;margin:4px 0 10px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:10px 0}
-.mu{color:var(--mu);font-size:15px}.c{text-align:center}
-.code{font-size:46px;font-weight:800;letter-spacing:3px;color:var(--ac);line-height:1.1}
-.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:19px}
-.status{font-size:22px;font-weight:800;padding:14px;border-radius:14px;text-align:center;background:var(--bd)}
-.status.ready{background:var(--ok);color:#fff}.status.picked_up{opacity:.75}
-.btn{display:block;width:100%;text-align:center;text-decoration:none;color:#fff;font-weight:700;font-size:18px;padding:15px;border-radius:14px;margin-top:10px;background:#06c755}
-.btn.alt{background:none;color:#06c755;border:2px solid #06c755}
-.lang{float:right;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px}
-.big{font-size:21px;font-weight:700}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+main{max-width:480px;margin:0 auto;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-bottom,0px));
+  padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.head{display:flex;align-items:center;gap:10px}
+h1{font:600 24px/1.2 var(--serif);margin:0;flex:1;text-wrap:balance}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 1px 0 rgba(43,30,23,.04),0 8px 24px -14px rgba(43,30,23,.28)}
+.mu{color:var(--ink-2);font-size:14.5px}.c{text-align:center}
+.code{font:600 52px/1 var(--serif);letter-spacing:.08em;color:var(--accent);margin:6px 0}
+.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:18px}
+.row+.row{border-top:1px solid var(--line)}
+.row span{font-family:var(--serif)}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:19px;padding:15px;border-radius:16px;background:var(--surface-2)}
+.status.ready{background:var(--ok);color:var(--surface)}.status.picked_up{background:var(--ok-soft);color:var(--ok)}
+.lbl{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+:lang(zh-Hant-TW) .lbl{letter-spacing:.12em;text-transform:none;font-size:13.5px}
+.big{font:600 21px/1.3 var(--serif)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-decoration:none;font-weight:700;font-size:17px;padding:16px;border-radius:16px;background:var(--line-green);color:#fff}
+.btn.alt{background:transparent;color:var(--line-green);border:1.5px solid var(--line-green)}
+.lang{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:7px 14px;font:inherit;font-size:14px}
+.foot{text-align:center;color:var(--ink-2);font-size:12.5px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -64,34 +77,36 @@ async function load() {
 
 function draw() {
   const toggle = `<button class="lang" id="lg">${lang === 'zh' ? 'English' : '中文'}</button>`;
+  const head = title => `<div class="head"><h1>${esc(title)}</h1>${toggle}</div>`;
   if (!token || data === false) {
-    app.innerHTML = toggle + `<h1>${T('Your order', '您的訂單')}</h1><div class="card">${data === false
+    app.innerHTML = head(T('Your order', '您的訂單')) + `<div class="card">${data === false
       ? T('Your order is being confirmed. This page will update by itself in a moment.', '訂單確認中，此頁面稍後會自動更新。')
       : T('This link is not complete. Please ask the shop.', '連結不完整，請洽店家。')}</div>`;
   } else if (!data) {
-    app.innerHTML = toggle + `<p class="c mu" style="margin-top:30vh">${T('Loading…', '載入中…')}</p>`;
+    app.innerHTML = head('') + `<p class="c mu" style="margin-top:30vh">${T('Loading…', '載入中…')}</p>`;
   } else {
     const o = data, s = o.shop || {}, m = o.market;
-    const st = { waiting: T('Being prepared', '準備中'), ready: T('✅ Ready for pickup', '✅ 可以取貨了'), picked_up: T('✔ Picked up — thank you!', '✔ 已取貨，謝謝！') }[o.status];
+    const st = { waiting: T('Being prepared', '準備中'), ready: T('Ready for pickup', '可以取貨了'), picked_up: T('Picked up · thank you!', '已取貨，謝謝！') }[o.status];
     const where = o.pickup_kind === 'market' && m
-      ? `<div class="big">${esc(m.name)}</div><div>${esc(fmtDate(m.date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${m.location ? `<div>📍 ${esc(m.location)}</div>` : ''}`
-      : `<div class="big">${T('At the shop', '到店取貨')}</div><div>${esc(fmtDate(o.pickup_date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${s.address ? `<div>📍 ${esc(s.address)}</div>` : ''}${s.hours ? `<div>🕐 ${esc(s.hours)}</div>` : ''}`;
+      ? `<div class="big">${esc(m.name)}</div><div>${esc(fmtDate(m.date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${m.location ? `<div class="mu">${esc(m.location)}</div>` : ''}`
+      : `<div class="big">${T('At the shop', '到店取貨')}</div><div>${esc(fmtDate(o.pickup_date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${s.address ? `<div class="mu">${esc(s.address)}</div>` : ''}${s.hours ? `<div class="mu">${esc(s.hours)}</div>` : ''}`;
     const msg = [s.name, `${T('Order', '訂單')} #${o.code}`, ...o.items.map(i => `${item(i)} × ${i.qty}`),
       `${T('Pickup', '取貨')}: ${o.pickup_kind === 'market' && m ? m.name + ' ' + fmtDate(m.date) : T('At the shop', '到店') + ' ' + fmtDate(o.pickup_date)} ${o.pickup_time || ''}`,
       location.href].filter(Boolean).join('\n');
-    app.innerHTML = toggle + `
-      <h1>${esc(s.name || '')}</h1>
-      <div class="card c"><div class="mu">${T('Order number', '訂單編號')}</div><div class="code">#${esc(o.code)}</div>
+    app.innerHTML = head(s.name || '') + `
+      <div class="card c"><div class="lbl">${T('Order number', '訂單編號')}</div><div class="code">#${esc(o.code)}</div>
         <div class="mu">${T('Show this page or your photo at pickup.', '取貨時請出示此頁面或照片。')}</div></div>
       <div class="status ${o.status}">${st}</div>
       <div class="card">${o.items.map(i => `<div class="row"><span>${esc(item(i))}</span><b>× ${i.qty}</b></div>`).join('')}
-        <div class="mu" style="margin-top:6px">${o.paid ? T('💰 Paid', '💰 已付款') : T('Pay at pickup', '取貨時付款')}</div>
-        ${o.note ? `<div class="mu">📝 ${esc(o.note)}</div>` : ''}</div>
-      <div class="card"><div class="mu">${T('Pickup', '取貨')}</div>${where}</div>
-      <a class="btn" href="https://line.me/R/share?text=${encodeURIComponent(msg)}">💬 ${T('Send to my LINE', '傳到我的 LINE')}</a>
-      ${s.line ? `<a class="btn alt" href="https://line.me/R/ti/p/${encodeURIComponent(s.line)}">${T('Add the shop on LINE', '加入店家 LINE')}</a>` : ''}`;
+        <div class="mu" style="margin-top:8px">${o.paid ? T('Paid', '已付款') : T('Pay at pickup', '取貨時付款')}</div>
+        ${o.note ? `<div class="mu">${T('Note', '備註')}：${esc(o.note)}</div>` : ''}</div>
+      <div class="card"><div class="lbl">${T('Pickup', '取貨')}</div>${where}</div>
+      <a class="btn" href="https://line.me/R/share?text=${encodeURIComponent(msg)}">${T('Save to my LINE', '傳到我的 LINE')}</a>
+      ${s.line ? `<a class="btn alt" href="https://line.me/R/ti/p/${encodeURIComponent(s.line)}">${T('Add the shop on LINE', '加入店家 LINE')}</a>` : ''}
+      <p class="foot">${T('This page updates by itself.', '此頁面會自動更新。')}</p>`;
   }
   document.getElementById('lg').onclick = () => { lang = lang === 'zh' ? 'en' : 'zh'; try { localStorage.setItem('lang', lang); } catch { } draw(); };
+  document.documentElement.lang = lang === 'zh' ? 'zh-Hant-TW' : 'en';
   document.title = data ? `#${data.code} · ${data.shop?.name || ''}` : T('Order', '訂單');
 }
 

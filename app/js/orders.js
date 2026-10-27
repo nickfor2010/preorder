@@ -1,7 +1,8 @@
 // Pre-orders: local copy on the phone + an "outbox" of changes waiting to be sent.
 // Everything is saved on the phone first, so the app keeps working without signal.
 import { sb, S, q } from './db.js';
-import { store, uuid, dateBi, today } from './util.js';
+import { store, uuid, today } from './util.js';
+import { T, pname, fmtDate } from './i18n.js';
 
 export const O = {
   list: store.get('orders', []),        // last list from the server (with items)
@@ -111,7 +112,7 @@ export async function sync() {
         else if (c.op === 'sale') await q(sb.from('sales').upsert(c.sale, { onConflict: 'id', ignoreDuplicates: true }));
         else if (c.op === 'unsale') {
           const gone = await q(sb.from('sales').delete().eq('id', c.id).select('id'));
-          if (!gone.length) throw new Error('Too late to undo (over 10 minutes) — ask the owner. 超過10分鐘無法復原，請找老闆。');
+          if (!gone.length) throw new Error(T('Too late to undo (over 10 minutes). Ask the owner to remove it.', '已超過 10 分鐘，無法復原，請老闆刪除。'));
         }
         O.outbox.splice(i--, 1);
         saveLocal();
@@ -167,20 +168,20 @@ export function startLive() {
 export function pickupText(o) {
   if (o.pickup_kind === 'market') {
     const m = S.markets.find(x => x.id === o.pickup_market_id);
-    return (m ? `${m.name} · ${dateBi(m.date)}` : 'Market 市集') + (o.pickup_time ? ' · ' + o.pickup_time : '');
+    return [m ? `${m.name} · ${fmtDate(m.date)}` : T('Market', '市集'), o.pickup_time].filter(Boolean).join(' · ');
   }
-  const d = o.pickup_date ? (o.pickup_date === today() ? 'Today 今天 · ' : '') + dateBi(o.pickup_date) : '';
-  return ['In shop 到店', d, o.pickup_time].filter(Boolean).join(' · ');
+  const d = o.pickup_date ? (o.pickup_date === today() ? T('Today', '今天') + ' · ' : '') + fmtDate(o.pickup_date) : '';
+  return [T('In shop', '到店'), d, o.pickup_time].filter(Boolean).join(' · ');
 }
 // group key + sort key for the "to make" list
 export function pickupGroup(o) {
   if (o.pickup_kind === 'market') {
     const m = S.markets.find(x => x.id === o.pickup_market_id);
-    return { key: 'm' + o.pickup_market_id, sort: (m?.date || '9999') + 'a', label: m ? `${m.name} · ${dateBi(m.date)}` : 'Market 市集' };
+    return { key: 'm' + o.pickup_market_id, sort: (m?.date || '9999') + 'a', label: m ? m.name : T('Market', '市集'), sub: m ? fmtDate(m.date) : '' };
   }
-  return { key: 's' + (o.pickup_date || ''), sort: (o.pickup_date || '9999') + 'b', label: 'In shop 到店' + (o.pickup_date ? ' · ' + dateBi(o.pickup_date) : '') };
+  return { key: 's' + (o.pickup_date || ''), sort: (o.pickup_date || '9999') + 'b', label: T('In shop', '到店'), sub: o.pickup_date ? fmtDate(o.pickup_date) : '' };
 }
-export const itemsText = o => (o.items || []).map(i => `${i.name_zh || i.name_en} ×${i.qty}`).join(', ');
+export const itemsText = o => (o.items || []).map(i => `${pname(i)} ×${i.qty}`).join(', ');
 export const orderTotal = o => (o.items || []).reduce((s, i) => s + i.qty * (i.unit_price || 0), 0);
 
 // "To make" = items still to hand over, grouped by when/where they are picked up
@@ -191,7 +192,7 @@ export function toMake(filter = () => true) {
     if (!groups.has(g.key)) groups.set(g.key, { ...g, items: new Map(), orders: 0 });
     const G = groups.get(g.key); G.orders++;
     for (const i of o.items || []) {
-      const k = i.name_zh || i.name_en;
+      const k = pname(i);
       G.items.set(k, (G.items.get(k) || 0) + i.qty);
     }
   }

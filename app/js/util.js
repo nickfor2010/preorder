@@ -1,4 +1,5 @@
 // Small helpers shared by every screen.
+import { T } from './i18n.js';
 
 // ---- safe HTML templates -------------------------------------------------
 // html`<b>${name}</b>` escapes `name`, so customer text can never break the page.
@@ -32,19 +33,11 @@ export const uuid = () => crypto.randomUUID ? crypto.randomUUID()
 export const today = () => isoDate(new Date());
 export function isoDate(d) { const z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; }
 export function addDays(iso, n) { const d = new Date(iso + 'T00:00'); d.setDate(d.getDate() + n); return isoDate(d); }
-// "Sat 1 Nov · 11/1（六）"
-export function dateBi(iso) {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00');
-  const en = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-  const zh = `${d.getMonth() + 1}/${d.getDate()}（${'日一二三四五六'[d.getDay()]}）`;
-  return `${en} · ${zh}`;
-}
 export function dayWord(iso) {
   const t = today();
-  if (iso === t) return 'Today 今天';
-  if (iso === addDays(t, 1)) return 'Tomorrow 明天';
-  if (iso === addDays(t, -1)) return 'Yesterday 昨天';
+  if (iso === t) return T('Today', '今天');
+  if (iso === addDays(t, 1)) return T('Tomorrow', '明天');
+  if (iso === addDays(t, -1)) return T('Yesterday', '昨天');
   return '';
 }
 export const money = n => 'NT$' + Number(n || 0).toLocaleString('en-US');
@@ -59,7 +52,7 @@ export function toast(msg, kind = '') {
 }
 export function errMsg(e) {
   const m = (e && (e.message || e.error_description)) || String(e);
-  if (/fetch|network|Failed to/i.test(m)) return 'No connection 沒有網路';
+  if (/fetch|network|Failed to|Load failed/i.test(m)) return T('No connection — try again when you have signal.', '沒有網路，請在有訊號時再試。');
   return m;
 }
 
@@ -79,7 +72,7 @@ export function choose(title, options) {
     d.className = 'sheet-bg';
     d.innerHTML = str(html`<div class="sheet" role="dialog" aria-label="${title}"><h3>${title}</h3>
       ${options.map((o, i) => html`<button class="${o.cls || ''}" data-i="${i}">${o.label}</button>`)}
-      <button class="ghost" data-i="-1">Cancel 取消</button></div>`);
+      <button class="ghost" data-i="-1">${T('Cancel', '取消')}</button></div>`);
     d.addEventListener('click', ev => {
       const b = ev.target.closest('button');
       if (!b && ev.target !== d) return;

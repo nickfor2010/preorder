@@ -1,5 +1,7 @@
 // App start, screen switching and the shared page frame (top bar + bottom tabs).
-import { html, str, $, toast, errMsg } from './util.js';
+import { html, str, raw, $, toast, errMsg } from './util.js';
+import { T } from './i18n.js';
+import { icon } from './icons.js';
 import { sb, S, loadMe, loadBasics } from './db.js';
 import { loginView, notInvitedView } from './views/login.js';
 import { homeView, pickMarketView, moreView } from './views/home.js';
@@ -54,7 +56,7 @@ export async function render() {
       view = await hit[1](...(h.match(hit[0]) || []).slice(1));
     }
   } catch (e) {
-    view = { title: 'Error 錯誤', body: html`<div class="card">${errMsg(e)}</div><button class="pri" data-act="reload">Try again 重試</button>`, actions: { reload: () => location.reload() } };
+    view = { title: T('Something went wrong', '發生錯誤'), body: html`<div class="card">${errMsg(e)}</div><button class="btn primary block" data-act="reload">${T('Try again', '重試')}</button>`, actions: { reload: () => location.reload() } };
   }
   if (id !== renderId) return;          // a newer screen was requested meanwhile
   mount(view);
@@ -65,14 +67,17 @@ function mount(v) {
   try { cleanup && cleanup(); } catch { }
   cleanup = v.cleanup || null;
   actions = v.actions || {};
-  const tabs = [['#/new', '➕', 'New', '新增'], ['#/orders', '📋', 'Orders', '訂單'], ['#/', '🛒', 'Market', '市集'], ['#/more', '☰', 'More', '更多']];
-  const nav = S.me && v.tab !== false ? html`<nav class="tabs">${tabs.map(([h, i, en, zh]) =>
-    html`<a href="${h}" class="${v.tab === h ? 'on' : ''}"><span>${i}</span>${en} ${zh}${h === '#/orders' && pendingCount() ? html`<i class="dot">${pendingCount()}</i>` : ''}</a>`)}</nav>` : '';
-  const top = html`<header class="top">
-      ${v.back ? html`<a class="back" href="${v.back}" aria-label="Back">‹</a>` : ''}
-      <h1>${v.title || ''}</h1>${v.right || ''}
-    </header>`;
+  const tabs = [['#/new', 'newOrder', T('New', '新增')], ['#/orders', 'orders', T('Orders', '訂單')], ['#/', 'market', T('Market', '市集')], ['#/more', 'more', T('More', '更多')]];
+  const n = pendingCount();
+  const nav = S.me && v.tab !== false ? html`<nav class="tabs"><div class="in">${tabs.map(([h, ic, label]) =>
+    html`<a href="${h}" class="${v.tab === h ? 'on' : ''}" ${v.tab === h ? raw('aria-current="page"') : ''}>${icon(ic)}${label}${h === '#/orders' && n ? html`<i class="dot">${n}</i>` : ''}</a>`)}</div></nav>` : '';
+  const top = !v.title && !v.back ? '' : html`<header class="top"><div class="in">
+      ${v.back ? html`<a class="back" href="${v.back}" aria-label="${T('Back', '返回')}">${icon('back')}</a>` : ''}
+      <h1>${v.title || ''}</h1>
+      <span class="pill warn offline-pill">${T('Offline', '離線')}</span>${v.right || ''}
+    </div></header>`;
   $('#app').innerHTML = str(html`${top}<main>${v.body}</main>${nav}`);
+  document.title = (v.title ? v.title + ' · ' : '') + 'MarketRecipe';
   window.scrollTo(0, 0);
   v.after && v.after($('#app'));
 }

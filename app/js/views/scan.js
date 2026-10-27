@@ -1,5 +1,7 @@
 // Scan the customer's QR (their photo or screenshot) with the phone camera.
 import { html, $, toast, loadScript } from '../util.js';
+import { T } from '../i18n.js';
+import { icon } from '../icons.js';
 import { sb, q } from '../db.js';
 import { go } from '../app.js';
 import { allOrders } from '../orders.js';
@@ -22,7 +24,7 @@ export function scanView() {
       } catch { }
     }
     if (o) { stop(); navigator.vibrate?.(80); go('#/order/' + o.id); }
-    else { toast('Order not found 找不到訂單', 'err'); setTimeout(() => { if (!done) loop(); }, 1500); }
+    else { toast(T('No order found for this code', '找不到這個 QR code 的訂單'), 'err'); setTimeout(() => { if (!done) loop(); }, 1500); }
   }
 
   let canvas, ctx, video, last = 0;
@@ -39,11 +41,11 @@ export function scanView() {
   }
 
   return {
-    title: 'Scan 掃描', back: '#/orders', tab: '#/orders',
+    title: T('Scan pickup', '掃描取貨'), back: '#/orders', tab: '#/orders',
     body: html`<div class="scanbox"><video id="cam" playsinline muted></video><div class="aim"></div></div>
-      <p class="mu c">Point at the customer's QR photo 對準客人的 QR 照片</p>
-      <p class="mu c small" id="camerr"></p>
-      <a class="btn wide" href="#/orders">🔍 Search by phone instead 改用電話搜尋</a>`,
+      <p class="mu c" style="margin:0">${T('Point the camera at the customer’s QR photo', '將相機對準客人的 QR code 照片')}</p>
+      <p class="note warn hide" id="camerr"></p>
+      <a class="btn block" href="#/orders">${icon('search')}${T('Search by phone instead', '改用電話搜尋')}</a>`,
     async after() {
       video = $('#cam'); canvas = document.createElement('canvas'); ctx = canvas.getContext('2d', { willReadFrequently: true });
       try {
@@ -52,7 +54,9 @@ export function scanView() {
         if (done) return stop();
         video.srcObject = stream; await video.play(); loop();
       } catch (e) {
-        $('#camerr').textContent = 'Camera not available 無法使用相機: ' + (e.message || e) + ' — allow camera in Settings › Safari › Camera 請在設定中允許相機';
+        const el = $('#camerr');
+        el.textContent = T('The camera isn’t available. Allow it in Settings › Safari › Camera, or search by phone.', '無法使用相機。請到「設定 › Safari › 相機」允許使用，或改用電話搜尋。');
+        el.classList.remove('hide');
       }
     },
     cleanup: stop,

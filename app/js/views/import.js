@@ -1,6 +1,8 @@
 // One-time import of orders saved by the old app on this phone.
 // (The old app is on the same website, so this phone can read what it saved.)
 import { html, toast, store, addDays, isoDate } from '../util.js';
+import { T } from '../i18n.js';
+import { icon } from '../icons.js';
 import { sb, S, q, loadBasics } from '../db.js';
 import { go } from '../app.js';
 import { createOrder } from '../orders.js';
@@ -8,26 +10,25 @@ import { createOrder } from '../orders.js';
 const old = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
 const oldOrders = () => (Array.isArray(old('orders')) ? old('orders') : []).filter(o => o && o.id && Array.isArray(o.items));
 export const oldOrdersCount = () => store.get('imported', false) ? 0 : oldOrders().length;
-const DAYS = { t: 'Today 今天', m: 'Tomorrow 明天', n: 'Next market 下次市集', s: 'In shop 到店' };
+const DAYS = { t: 'Today', m: 'Tomorrow', n: 'Next market', s: 'In shop' };
 
 export function importView() {
   const L = oldOrders(), P = old('products') || [], shop = old('shop') || {};
   const open = L.filter(o => !o.done).length;
   return {
-    title: 'Import old orders 匯入舊訂單', back: '#/more', tab: '#/more',
+    title: T('Import old orders', '匯入舊訂單'), back: '#/more', tab: '#/more',
     body: html`
-      <div class="card"><b>${L.length}</b> orders from the old app on this phone (${open} not picked up)<br>
-        這支手機舊版有 <b>${L.length}</b> 筆訂單（${open} 筆未取貨）</div>
-      <p class="mu small">They are copied, not moved: the old app keeps working. Old QR photos still open the old page.
-        Old orders are added as "In shop" pickups with their original date and code.<br>
-        只會複製，不會刪除舊資料。</p>
-      ${S.isOwner && (P.length || shop.name) ? html`<label class="card row big-check"><span class="grow">Also copy ${P.length} products and shop info 一併複製商品與店家資料</span><input id="alsoP" type="checkbox" checked></label>` : ''}
-      <button class="pri" data-act="go">Import 匯入</button>
-      <button class="ghost wide" data-act="csv">⬇ Save a backup file (CSV) 下載備份</button>
-      ${store.get('imported', false) ? html`<p class="mu c">Already imported on ${store.get('imported')}. 已匯入</p>` : ''}`,
+      <div class="card c"><div class="big-num">${L.length}</div>
+        <div class="mu">${T(`orders from the old app on this phone · ${open} not picked up`, `筆舊版訂單在這支手機 · ${open} 筆未取貨`)}</div></div>
+      <p class="mu small" style="margin:0 2px">${T('They are copied, not moved, so the old app keeps working and old QR photos still open. Each order keeps its code and is added as an “In shop” pickup on its original date.',
+        '只會複製，不會刪除舊資料；舊版和舊 QR 照片仍可使用。每筆訂單保留原編號，並以「到店取貨」和原日期加入。')}</p>
+      ${S.isOwner && (P.length || shop.name) ? html`<label class="card check-row"><span class="grow">${T(`Also copy ${P.length} products and the shop details`, `一併複製 ${P.length} 項商品與店家資料`)}</span><input id="alsoP" type="checkbox" checked></label>` : ''}
+      <button class="btn primary lg block" data-act="go">${T('Import orders', '匯入訂單')}</button>
+      <button class="btn ghost block" data-act="csv">${icon('download')}${T('Save a backup file (CSV)', '下載備份檔（CSV）')}</button>
+      ${store.get('imported', false) ? html`<p class="mu c small">${T(`Already imported on ${store.get('imported')}.`, `已於 ${store.get('imported')} 匯入。`)}</p>` : ''}`,
     actions: {
       async go() {
-        if (store.get('imported', false) && !confirm('Already imported once. Import again (may duplicate)? 已匯入過，再匯一次？')) return;
+        if (store.get('imported', false) && !confirm(T('You already imported once. Import again? This can create duplicates.', '已經匯入過，確定再匯入一次？可能會重複。'))) return;
         if (S.isOwner && document.getElementById('alsoP')?.checked) await copyProducts(P, shop);
         const byName = new Map(S.products.flatMap(p => [[p.name_zh, p], [p.name_en, p]]).filter(([k]) => k));
         for (const o of [...L].reverse()) {
@@ -36,7 +37,7 @@ export function importView() {
           createOrder({
             code: String(o.id).toUpperCase(), market_id: null, imported: true,
             pickup_kind: 'shop', pickup_market_id: null, pickup_date: date,
-            pickup_time: [o.day === 'n' ? DAYS.n : '', o.time || ''].filter(Boolean).join(' '),
+            pickup_time: [o.day === 'n' ? T('Next market', '下次市集') : '', o.time || ''].filter(Boolean).join(' '),
             customer_name: o.name || '', phone: String(o.phone || ''), note: o.note || '',
             paid: !!o.paid, payment_type: null, paid_market_id: null,
             status: o.done ? 'picked_up' : 'waiting',
@@ -48,7 +49,7 @@ export function importView() {
           }));
         }
         store.set('imported', new Date().toLocaleDateString('zh-TW'));
-        toast(`Imported ${L.length} 已匯入`); go('#/orders');
+        toast(T(`Imported ${L.length} orders`, `已匯入 ${L.length} 筆訂單`)); go('#/orders');
       },
       csv() {
         const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
