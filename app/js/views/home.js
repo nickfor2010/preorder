@@ -111,6 +111,7 @@ export async function homeView() {
         <div class="grow">${marketLine(m)}</div>
         <div class="col-end">${statusTag(m.status)}<span class="link">Change 切換</span></div>
       </a>
+      ${S.isOwner ? html`<a class="btn wide sumbtn" href="#/summary/${m.id}">📊 Summary 結算 ›</a>` : ''}
       <div id="sbar">${syncBar()}</div>
       <h2>Walk-up sale 現場銷售 <span class="mu small">tap = sell 1 點一下＝賣出 1</span></h2>
       <div class="chips" id="payc">${PAY.map(([k, l]) => html`<button class="chipb ${pay === k ? 'on' : ''}" data-act="pay" data-k="${k}">${l}</button>`)}</div>
@@ -190,6 +191,7 @@ export function moreView() {
       ${link('#/pick', '🛒', 'Choose market', '選擇市集')}
       ${oldOrdersCount() ? link('#/import', '📥', `Import ${oldOrdersCount()} old orders`, '匯入舊訂單') : ''}
       ${owner ? [
+        link('#/summary', '📊', 'Summary', '結算'),
         link('#/markets', '📅', 'Markets', '市集管理'),
         link('#/products', '🍰', 'Products', '商品'),
         link('#/team', '👥', 'Team', '團隊'),

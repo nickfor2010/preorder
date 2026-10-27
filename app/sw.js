@@ -1,12 +1,12 @@
 // Keeps a copy of the app on the phone so it opens with no signal.
 // Online: always fetch the newest files (so updates arrive at once). Offline: use the saved copy.
-const CACHE = 'mr-v4';
+const CACHE = 'mr-v5';
 const FILES = [
   './', 'index.html', 'o.html', 'manifest.webmanifest',
   'js/app.js', 'js/config.js', 'js/db.js', 'js/util.js', 'js/orders.js',
   'js/views/home.js', 'js/views/login.js', 'js/views/markets.js', 'js/views/products.js',
   'js/views/shop.js', 'js/views/team.js', 'js/views/neworder.js', 'js/views/orderlist.js',
-  'js/views/scan.js', 'js/views/import.js',
+  'js/views/scan.js', 'js/views/import.js', 'js/views/summary.js',
   'vendor/supabase.js', 'vendor/qrcode.js', 'vendor/jsQR.js',
   '../apple-touch-icon.png', '../icon-512.png',
 ];

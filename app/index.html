@@ -113,6 +113,11 @@ body.offline .top::after{content:"Offline 離線";font-size:12px;background:var(
 .undobar{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;max-width:540px;margin:auto;display:flex;align-items:center;gap:10px;
   background:#2b2118;color:#fff;border-radius:14px;padding:8px 8px 8px 14px;transform:translateY(150%);opacity:0;transition:.2s;pointer-events:none}
 .undobar.show{transform:none;opacity:1;pointer-events:auto}.undobar button{background:var(--warn);color:#000;font-weight:700}
+.stat b{font-size:22px;display:block}.pct{min-width:40px;text-align:right}
+.sumline{border-top:1px solid var(--bd);margin-top:6px;padding-top:8px}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}.tbl th{font-size:12px;color:var(--mu);font-weight:400;text-align:right;padding:4px}
+.tbl td{padding:8px 4px;border-top:1px solid var(--bd);text-align:right;font-variant-numeric:tabular-nums}.tbl td:first-child,.tbl th:first-child{text-align:left}
+.sumbtn{margin-top:0;background:var(--card);border:1px solid var(--bd)}
 .sheet h3{margin:0 0 4px;font-size:17px}.sheet .pri{margin:0}
 </style>
 </head>
