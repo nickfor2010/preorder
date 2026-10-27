@@ -51,10 +51,31 @@ export async function loadBasics() {
   store.set('org', org); store.set('markets', markets); store.set('products', products);
 }
 
+// make sure the market list is loaded (first start on a new phone)
+export async function ensureBasics() {
+  if (!S.markets.length || !S.org) { try { await loadBasics(); } catch { } }
+}
+
 export function setMarket(id) { S.marketId = id; store.set('market', id); }
 
 export async function signOut() {
   await sb.auth.signOut().catch(() => { });
-  ['me', 'org', 'markets', 'products', 'market'].forEach(store.del);
+  ['me', 'org', 'markets', 'products', 'market', 'orders', 'lastSync'].forEach(store.del);   // unsent changes (outbox) are kept
   S.me = null; S.org = null; S.markets = []; S.products = []; S.marketId = null;
 }
+
+// Ask the server, but give up after a few seconds on bad wifi and use the copy saved on the phone.
+export async function cached(key, fn, ms = 5000) {
+  try {
+    const data = await Promise.race([fn(), new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+    store.set('c.' + key, data);
+    return data;
+  } catch (e) {
+    const old = store.get('c.' + key, null);
+    if (old) return old;
+    throw e;
+  }
+}
+export const marketProducts = id => cached('mp.' + id, () =>
+  q(sb.from('market_products').select('product_id,price,qty_brought,sold_out,sort').eq('market_id', id).order('sort')));
+export const marketStock = id => cached('stock.' + id, () => q(sb.rpc('market_stock', { p_market: id })), 4000);

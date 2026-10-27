@@ -71,3 +71,29 @@ export function formData(root) {
   });
   return o;
 }
+
+// ---- pop-up chooser: await choose('Paid how?', [{label:'Cash 現金', value:'cash'}, …]) -----
+export function choose(title, options) {
+  return new Promise(resolve => {
+    const d = document.createElement('div');
+    d.className = 'sheet-bg';
+    d.innerHTML = str(html`<div class="sheet" role="dialog" aria-label="${title}"><h3>${title}</h3>
+      ${options.map((o, i) => html`<button class="${o.cls || ''}" data-i="${i}">${o.label}</button>`)}
+      <button class="ghost" data-i="-1">Cancel 取消</button></div>`);
+    d.addEventListener('click', ev => {
+      const b = ev.target.closest('button');
+      if (!b && ev.target !== d) return;
+      const i = b ? +b.dataset.i : -1;
+      d.remove(); resolve(i >= 0 ? options[i].value : undefined);
+    });
+    document.body.appendChild(d);
+  });
+}
+
+// load a script only when needed (e.g. the QR scanner)
+const loaded = {};
+export const loadScript = src => loaded[src] || (loaded[src] = new Promise((ok, bad) => {
+  const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s);
+}));
+
+export const digits = s => String(s || '').replace(/\D/g, '');

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Order 訂單</title>
+<link rel="icon" href="../icon-512.png">
+<style>
+:root{--bg:#fffaf3;--card:#fff;--tx:#2b2118;--mu:#7a6a5c;--ac:#d9622b;--ok:#2e8b57;--bd:#eadfce;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1713;--card:#2a231d;--tx:#f5ece2;--mu:#b5a493;--ac:#f08a52;--ok:#5cc98a;--bd:#3d342b;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.45 -apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif}
+main{max-width:520px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(30px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:10px 0}
+.mu{color:var(--mu);font-size:15px}.c{text-align:center}
+.code{font-size:46px;font-weight:800;letter-spacing:3px;color:var(--ac);line-height:1.1}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:19px}
+.status{font-size:22px;font-weight:800;padding:14px;border-radius:14px;text-align:center;background:var(--bd)}
+.status.ready{background:var(--ok);color:#fff}.status.picked_up{opacity:.75}
+.btn{display:block;width:100%;text-align:center;text-decoration:none;color:#fff;font-weight:700;font-size:18px;padding:15px;border-radius:14px;margin-top:10px;background:#06c755}
+.btn.alt{background:none;color:#06c755;border:2px solid #06c755}
+.lang{float:right;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px}
+.big{font-size:21px;font-weight:700}
+</style>
+</head>
+<body>
+<main id="app"><p class="c mu" style="margin-top:40vh">…</p></main>
+<script type="module">
+import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+
+const token = (location.hash.match(/t=([A-Za-z0-9]{20,})/) || [])[1];
+let lang = (navigator.languages || [navigator.language]).some(l => /^zh/i.test(l)) ? 'zh' : 'en';
+try { lang = localStorage.getItem('lang') || lang; } catch { }
+const T = (en, zh) => lang === 'zh' ? zh : en;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const app = document.getElementById('app');
+let data = null, timer;
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00');
+  return lang === 'zh' ? `${d.getMonth() + 1}月${d.getDate()}日（${'日一二三四五六'[d.getDay()]}）`
+    : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+const item = i => lang === 'zh' ? (i.zh || i.en) : (i.en || i.zh);
+
+async function load() {
+  if (!token) return draw();
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_order_by_token`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (r.ok) data = (await r.json()) || false;
+  } catch { /* offline: keep showing what we have */ }
+  draw();
+  clearTimeout(timer);
+  if (data?.status !== 'picked_up') timer = setTimeout(load, data ? 20000 : 10000);
+}
+
+function draw() {
+  const toggle = `<button class="lang" id="lg">${lang === 'zh' ? 'English' : '中文'}</button>`;
+  if (!token || data === false) {
+    app.innerHTML = toggle + `<h1>${T('Your order', '您的訂單')}</h1><div class="card">${data === false
+      ? T('Your order is being confirmed. This page will update by itself in a moment.', '訂單確認中，此頁面稍後會自動更新。')
+      : T('This link is not complete. Please ask the shop.', '連結不完整，請洽店家。')}</div>`;
+  } else if (!data) {
+    app.innerHTML = toggle + `<p class="c mu" style="margin-top:30vh">${T('Loading…', '載入中…')}</p>`;
+  } else {
+    const o = data, s = o.shop || {}, m = o.market;
+    const st = { waiting: T('Being prepared', '準備中'), ready: T('✅ Ready for pickup', '✅ 可以取貨了'), picked_up: T('✔ Picked up — thank you!', '✔ 已取貨，謝謝！') }[o.status];
+    const where = o.pickup_kind === 'market' && m
+      ? `<div class="big">${esc(m.name)}</div><div>${esc(fmtDate(m.date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${m.location ? `<div>📍 ${esc(m.location)}</div>` : ''}`
+      : `<div class="big">${T('At the shop', '到店取貨')}</div><div>${esc(fmtDate(o.pickup_date))}${o.pickup_time ? ' · ' + esc(o.pickup_time) : ''}</div>${s.address ? `<div>📍 ${esc(s.address)}</div>` : ''}${s.hours ? `<div>🕐 ${esc(s.hours)}</div>` : ''}`;
+    const msg = [s.name, `${T('Order', '訂單')} #${o.code}`, ...o.items.map(i => `${item(i)} × ${i.qty}`),
+      `${T('Pickup', '取貨')}: ${o.pickup_kind === 'market' && m ? m.name + ' ' + fmtDate(m.date) : T('At the shop', '到店') + ' ' + fmtDate(o.pickup_date)} ${o.pickup_time || ''}`,
+      location.href].filter(Boolean).join('\n');
+    app.innerHTML = toggle + `
+      <h1>${esc(s.name || '')}</h1>
+      <div class="card c"><div class="mu">${T('Order number', '訂單編號')}</div><div class="code">#${esc(o.code)}</div>
+        <div class="mu">${T('Show this page or your photo at pickup.', '取貨時請出示此頁面或照片。')}</div></div>
+      <div class="status ${o.status}">${st}</div>
+      <div class="card">${o.items.map(i => `<div class="row"><span>${esc(item(i))}</span><b>× ${i.qty}</b></div>`).join('')}
+        <div class="mu" style="margin-top:6px">${o.paid ? T('💰 Paid', '💰 已付款') : T('Pay at pickup', '取貨時付款')}</div>
+        ${o.note ? `<div class="mu">📝 ${esc(o.note)}</div>` : ''}</div>
+      <div class="card"><div class="mu">${T('Pickup', '取貨')}</div>${where}</div>
+      <a class="btn" href="https://line.me/R/share?text=${encodeURIComponent(msg)}">💬 ${T('Send to my LINE', '傳到我的 LINE')}</a>
+      ${s.line ? `<a class="btn alt" href="https://line.me/R/ti/p/${encodeURIComponent(s.line)}">${T('Add the shop on LINE', '加入店家 LINE')}</a>` : ''}`;
+  }
+  document.getElementById('lg').onclick = () => { lang = lang === 'zh' ? 'en' : 'zh'; try { localStorage.setItem('lang', lang); } catch { } draw(); };
+  document.title = data ? `#${data.code} · ${data.shop?.name || ''}` : T('Order', '訂單');
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && data?.status !== 'picked_up') load(); });
+draw(); load();
+</script>
+</body>
+</html>
