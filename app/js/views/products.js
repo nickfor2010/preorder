@@ -1,5 +1,5 @@
 // Owner: product catalogue (names in both languages, usual price, on/off, order).
-import { html, $, toast, uuid, money, formData } from '../util.js';
+import { html, $, toast, uuid, money, formData, choose } from '../util.js';
 import { T, pname } from '../i18n.js';
 import { icon } from '../icons.js';
 import { sb, S, q, loadBasics } from '../db.js';
@@ -60,13 +60,28 @@ export async function productEditView(id) {
         await loadBasics(); toast(T('Product saved', '商品已儲存')); go('#/products');
       },
       async del() {
+        const count = r => { if (r.error) throw r.error; return r.count || 0; };
         const [a, b, c] = await Promise.all([
           sb.from('order_items').select('id', { count: 'exact', head: true }).eq('product_id', p.id),
           sb.from('sales').select('id', { count: 'exact', head: true }).eq('product_id', p.id),
           sb.from('market_products').select('product_id', { count: 'exact', head: true }).eq('product_id', p.id),
         ]);
-        if (a.count || b.count || c.count) return toast(T('This product is used in markets or orders. Turn “On sale” off instead.', '此商品已被市集或訂單使用，請改為關閉「上架中」。'), 'err');
-        if (!confirm(T('Delete this product?', '確定刪除此商品？'))) return;
+        const used = count(a) + count(b), markets = count(c);
+        if (used) {
+          // it has been sold or pre-ordered: deleting would damage the sales history, so offer to hide it
+          const ans = await choose(T('Hide instead of delete?', '改為隱藏？'),
+            [{ label: T('Hide product', '隱藏商品'), value: 'hide', cls: 'primary' }],
+            T('This product already has sales or pre-orders. Deleting it would erase that history, so it can only be hidden. It stays in past totals but won’t appear in new markets.',
+              '此商品已有銷售或預訂紀錄，刪除會清除這些紀錄，因此只能隱藏。過去的統計會保留，但不會出現在新的市集。'));
+          if (ans !== 'hide') return;
+          await q(sb.from('products').update({ active: false }).eq('id', p.id));
+          await loadBasics(); toast(T('Product hidden', '商品已隱藏')); return go('#/products');
+        }
+        const ans = await choose(T(`Delete “${pname(p)}”?`, `確定刪除「${pname(p)}」？`),
+          [{ label: T('Delete product', '刪除商品'), value: 'del', cls: 'danger' }],
+          markets ? T(`It will also be removed from ${markets} market${markets > 1 ? 's' : ''}. This can’t be undone.`, `也會從 ${markets} 場市集中移除，且無法復原。`)
+            : T('This can’t be undone.', '刪除後無法復原。'));
+        if (ans !== 'del') return;
         await q(sb.from('products').delete().eq('id', p.id));
         await loadBasics(); toast(T('Product deleted', '商品已刪除')); go('#/products');
       },

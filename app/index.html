@@ -158,10 +158,13 @@ body.offline .offline-pill{display:inline-flex}
 .sheet{background:var(--bg);width:100%;max-width:560px;margin:0 auto;border-radius:22px 22px 0 0;display:grid;gap:8px;
   padding:10px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));animation:up .2s ease-out}
 .sheet::before{content:"";width:38px;height:5px;border-radius:3px;background:var(--line);justify-self:center;margin-bottom:6px}
-.sheet h3{margin:0 0 6px;font:600 19px/1.3 var(--serif)}
+.sheet h3{margin:0;font:600 20px/1.3 var(--serif)}
+.sheet-msg{margin:0 0 8px;color:var(--ink-2);font-size:15px;line-height:1.5}
 .sheet button{min-height:54px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:16px}
 .sheet button.primary{background:var(--primary);color:var(--primary-ink);border-color:transparent}
 .sheet button.ghost{background:transparent;color:var(--ink-2);font-weight:500}
+.sheet button.danger{background:var(--bad);color:#fff;border-color:transparent}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:22px;max-width:440px;padding-bottom:18px}.sheet::before{display:none}}
 @keyframes up{from{transform:translateY(30px);opacity:.4}}@keyframes fade{from{opacity:0}}
 
 /* ---------- market & selling ---------- */

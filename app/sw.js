@@ -1,6 +1,6 @@
 // Keeps a copy of the app on the phone so it opens with no signal.
 // Online: always fetch the newest files (so updates arrive at once). Offline: use the saved copy.
-const CACHE = 'mr-v6';
+const CACHE = 'mr-v8';
 const FILES = [
   './', 'index.html', 'o.html', 'manifest.webmanifest',
   'js/app.js', 'js/config.js', 'js/db.js', 'js/util.js', 'js/orders.js',

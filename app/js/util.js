@@ -66,11 +66,11 @@ export function formData(root) {
 }
 
 // ---- pop-up chooser: await choose('Paid how?', [{label:'Cash 現金', value:'cash'}, …]) -----
-export function choose(title, options) {
+export function choose(title, options, message = '') {
   return new Promise(resolve => {
     const d = document.createElement('div');
     d.className = 'sheet-bg';
-    d.innerHTML = str(html`<div class="sheet" role="dialog" aria-label="${title}"><h3>${title}</h3>
+    d.innerHTML = str(html`<div class="sheet" role="dialog" aria-label="${title}"><h3>${title}</h3>${message ? html`<p class="sheet-msg">${message}</p>` : ''}
       ${options.map((o, i) => html`<button class="${o.cls || ''}" data-i="${i}">${o.label}</button>`)}
       <button class="ghost" data-i="-1">${T('Cancel', '取消')}</button></div>`);
     d.addEventListener('click', ev => {
